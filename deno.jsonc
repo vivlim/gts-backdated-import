@@ -1,0 +1,21 @@
+{
+    "tasks": {
+        "dev": "deno run --watch main.ts"
+    },
+    "imports": { "@std/assert": "jsr:@std/assert@1", "megalodon": "npm:megalodon@^10.0.7" },
+    "fmt": {
+        "useTabs": false,
+        "lineWidth": 300,
+        "indentWidth": 4,
+        "semiColons": true,
+        "singleQuote": false,
+        "proseWrap": "preserve",
+        "include": [
+            "src/"
+        ],
+        "exclude": [
+            "src/testdata/",
+            "src/fixtures/**/*.ts"
+        ]
+    }
+}
