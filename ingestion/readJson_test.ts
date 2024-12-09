@@ -67,3 +67,31 @@ Deno.test({name: "read and normalize posts", permissions: {read: true}}, async(t
     assertEquals(foundAttachments.length, 1);
     assertEquals(await exists(foundAttachments[0].filePath), true)
 })
+
+Deno.test({name: "parses and ignores linked post", permissions: {read: true}}, async(t) => {
+    const pipeline = new ExtractMastodonExportItems()
+        .into(new FilterLinkedPosts())
+        .into(new GatherMastodonAttachments("./testdata")
+        .into(new NormalizeMastodonPosts()));
+
+    const result: WithAttachments<IArchivedPost>[] = await RunPipeline(pipeline, [{
+        "id": "outbox.json",
+        "type": "OrderedCollection",
+        "totalItems": 2,
+        "orderedItems": [
+        {
+            "id": "https://botsin.space/users/vivdev/statuses/113599785306172885/activity",
+            "type": "Create",
+            "actor": "https://botsin.space/users/vivdev",
+            "published": "2024-12-05T10:39:21Z",
+            "to": [
+                "https://botsin.space/users/vivdev/followers"
+            ],
+            "cc": [],
+            "object": "this represents a hyperlink instead of an object."
+        }
+    ]}]);
+    console.log(JSON.stringify(result, null, 2));
+    assertEquals(pipeline.errors.length, 0);
+    assertEquals(result.length, 0)
+})
