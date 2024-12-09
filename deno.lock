@@ -3,6 +3,8 @@
   "packages": {
     "specifiers": {
       "jsr:@std/assert@1": "jsr:@std/assert@1.0.9",
+      "jsr:@std/async": "jsr:@std/async@1.0.9",
+      "jsr:@std/cli": "jsr:@std/cli@1.0.8",
       "jsr:@std/internal@^1.0.5": "jsr:@std/internal@1.0.5",
       "npm:megalodon@^10.0.7": "npm:megalodon@10.0.7_ws@8.18.0"
     },
@@ -12,6 +14,12 @@
         "dependencies": [
           "jsr:@std/internal@^1.0.5"
         ]
+      },
+      "@std/async@1.0.9": {
+        "integrity": "c6472fd0623b3f3daae023cdf7ca5535e1b721dfbf376562c0c12b3fb4867f91"
+      },
+      "@std/cli@1.0.8": {
+        "integrity": "3762d8dc9a373715c08d871c38d45e637b25266f013a1d0bbe560bca409de94e"
       },
       "@std/internal@1.0.5": {
         "integrity": "54a546004f769c1ac9e025abd15a76b6671ddc9687e2313b67376125650dc7ba"
