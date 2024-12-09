@@ -1,0 +1,161 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/security/v1",
+    {
+      "manuallyApprovesFollowers": "as:manuallyApprovesFollowers",
+      "sensitive": "as:sensitive",
+      "Hashtag": "as:Hashtag",
+      "movedTo": {
+        "@id": "as:movedTo",
+        "@type": "@id"
+      },
+      "alsoKnownAs": {
+        "@id": "as:alsoKnownAs",
+        "@type": "@id"
+      },
+      "toot": "http://joinmastodon.org/ns#",
+      "Emoji": "toot:Emoji",
+      "featured": {
+        "@id": "toot:featured",
+        "@type": "@id"
+      },
+      "featuredTags": {
+        "@id": "toot:featuredTags",
+        "@type": "@id"
+      },
+      "schema": "http://schema.org#",
+      "PropertyValue": "schema:PropertyValue",
+      "value": "schema:value",
+      "ostatus": "http://ostatus.org#",
+      "atomUri": "ostatus:atomUri",
+      "inReplyToAtomUri": "ostatus:inReplyToAtomUri",
+      "conversation": "ostatus:conversation",
+      "focalPoint": {
+        "@container": "@list",
+        "@id": "toot:focalPoint"
+      },
+      "blurhash": "toot:blurhash",
+      "discoverable": "toot:discoverable",
+      "indexable": "toot:indexable",
+      "memorial": "toot:memorial",
+      "votersCount": "toot:votersCount",
+      "suspended": "toot:suspended",
+      "attributionDomains": {
+        "@id": "toot:attributionDomains",
+        "@type": "@id"
+      }
+    }
+  ],
+  "id": "outbox.json",
+  "type": "OrderedCollection",
+  "totalItems": 2,
+  "orderedItems": [
+    {
+      "id": "https://botsin.space/users/vivdev/statuses/113599784910969099/activity",
+      "type": "Create",
+      "actor": "https://botsin.space/users/vivdev",
+      "published": "2024-12-05T10:39:15Z",
+      "to": [
+        "https://botsin.space/users/vivdev/followers"
+      ],
+      "cc": [],
+      "object": {
+        "id": "https://botsin.space/users/vivdev/statuses/113599784910969099",
+        "type": "Note",
+        "summary": null,
+        "inReplyTo": null,
+        "published": "2024-12-05T10:39:15Z",
+        "url": "https://botsin.space/@vivdev/113599784910969099",
+        "attributedTo": "https://botsin.space/users/vivdev",
+        "to": [
+          "https://botsin.space/users/vivdev/followers"
+        ],
+        "cc": [],
+        "sensitive": false,
+        "atomUri": "https://botsin.space/users/vivdev/statuses/113599784910969099",
+        "inReplyToAtomUri": null,
+        "conversation": "tag:botsin.space,2024-12-05:objectId=135371558:objectType=Conversation",
+        "content": "<p>this is one of two posts</p>",
+        "contentMap": {
+          "en": "<p>this is one of two posts</p>"
+        },
+        "attachment": [],
+        "tag": [],
+        "replies": {
+          "id": "https://botsin.space/users/vivdev/statuses/113599784910969099/replies",
+          "type": "Collection",
+          "first": {
+            "type": "CollectionPage",
+            "next": "https://botsin.space/users/vivdev/statuses/113599784910969099/replies?only_other_accounts=true&page=true",
+            "partOf": "https://botsin.space/users/vivdev/statuses/113599784910969099/replies",
+            "items": []
+          }
+        },
+        "likes": {
+          "id": "https://botsin.space/users/vivdev/statuses/113599784910969099/likes",
+          "type": "Collection",
+          "totalItems": 0
+        },
+        "shares": {
+          "id": "https://botsin.space/users/vivdev/statuses/113599784910969099/shares",
+          "type": "Collection",
+          "totalItems": 0
+        }
+      }
+    },
+    {
+      "id": "https://botsin.space/users/vivdev/statuses/113599785306172885/activity",
+      "type": "Create",
+      "actor": "https://botsin.space/users/vivdev",
+      "published": "2024-12-05T10:39:21Z",
+      "to": [
+        "https://botsin.space/users/vivdev/followers"
+      ],
+      "cc": [],
+      "object": {
+        "id": "https://botsin.space/users/vivdev/statuses/113599785306172885",
+        "type": "Note",
+        "summary": null,
+        "inReplyTo": null,
+        "published": "2024-12-05T10:39:21Z",
+        "url": "https://botsin.space/@vivdev/113599785306172885",
+        "attributedTo": "https://botsin.space/users/vivdev",
+        "to": [
+          "https://botsin.space/users/vivdev/followers"
+        ],
+        "cc": [],
+        "sensitive": false,
+        "atomUri": "https://botsin.space/users/vivdev/statuses/113599785306172885",
+        "inReplyToAtomUri": null,
+        "conversation": "tag:botsin.space,2024-12-05:objectId=135371562:objectType=Conversation",
+        "content": "<p>this is two of two posts</p>",
+        "contentMap": {
+          "en": "<p>this is two of two posts</p>"
+        },
+        "attachment": [],
+        "tag": [],
+        "replies": {
+          "id": "https://botsin.space/users/vivdev/statuses/113599785306172885/replies",
+          "type": "Collection",
+          "first": {
+            "type": "CollectionPage",
+            "next": "https://botsin.space/users/vivdev/statuses/113599785306172885/replies?only_other_accounts=true&page=true",
+            "partOf": "https://botsin.space/users/vivdev/statuses/113599785306172885/replies",
+            "items": []
+          }
+        },
+        "likes": {
+          "id": "https://botsin.space/users/vivdev/statuses/113599785306172885/likes",
+          "type": "Collection",
+          "totalItems": 0
+        },
+        "shares": {
+          "id": "https://botsin.space/users/vivdev/statuses/113599785306172885/shares",
+          "type": "Collection",
+          "totalItems": 0
+        }
+      }
+    }
+  ]
+}

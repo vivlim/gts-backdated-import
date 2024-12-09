@@ -4,8 +4,14 @@
     "specifiers": {
       "jsr:@std/assert@1": "jsr:@std/assert@1.0.9",
       "jsr:@std/async": "jsr:@std/async@1.0.9",
+      "jsr:@std/bytes@^1.0.3": "jsr:@std/bytes@1.0.4",
       "jsr:@std/cli": "jsr:@std/cli@1.0.8",
+      "jsr:@std/fs": "jsr:@std/fs@1.0.6",
       "jsr:@std/internal@^1.0.5": "jsr:@std/internal@1.0.5",
+      "jsr:@std/json": "jsr:@std/json@1.0.1",
+      "jsr:@std/path@^1.0.8": "jsr:@std/path@1.0.8",
+      "jsr:@std/streams": "jsr:@std/streams@1.0.8",
+      "jsr:@std/streams@^1.0.7": "jsr:@std/streams@1.0.8",
       "npm:megalodon@^10.0.7": "npm:megalodon@10.0.7_ws@8.18.0"
     },
     "jsr": {
@@ -18,11 +24,35 @@
       "@std/async@1.0.9": {
         "integrity": "c6472fd0623b3f3daae023cdf7ca5535e1b721dfbf376562c0c12b3fb4867f91"
       },
+      "@std/bytes@1.0.4": {
+        "integrity": "11a0debe522707c95c7b7ef89b478c13fb1583a7cfb9a85674cd2cc2e3a28abc"
+      },
       "@std/cli@1.0.8": {
         "integrity": "3762d8dc9a373715c08d871c38d45e637b25266f013a1d0bbe560bca409de94e"
       },
+      "@std/fs@1.0.6": {
+        "integrity": "42b56e1e41b75583a21d5a37f6a6a27de9f510bcd36c0c85791d685ca0b85fa2",
+        "dependencies": [
+          "jsr:@std/path@^1.0.8"
+        ]
+      },
       "@std/internal@1.0.5": {
         "integrity": "54a546004f769c1ac9e025abd15a76b6671ddc9687e2313b67376125650dc7ba"
+      },
+      "@std/json@1.0.1": {
+        "integrity": "1f0f70737e8827f9acca086282e903677bc1bb0c8ffcd1f21bca60039563049f",
+        "dependencies": [
+          "jsr:@std/streams@^1.0.7"
+        ]
+      },
+      "@std/path@1.0.8": {
+        "integrity": "548fa456bb6a04d3c1a1e7477986b6cffbce95102d0bb447c67c4ee70e0364be"
+      },
+      "@std/streams@1.0.8": {
+        "integrity": "b41332d93d2cf6a82fe4ac2153b930adf1a859392931e2a19d9fabfb6f154fb3",
+        "dependencies": [
+          "jsr:@std/bytes@^1.0.3"
+        ]
       }
     },
     "npm": {

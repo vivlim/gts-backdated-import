@@ -1,3 +1,12 @@
+import { parseArgs } from "jsr:@std/cli/parse-args";
+
+const flags = parseArgs(Deno.args, {
+  boolean: ["help"],
+  string: ["inputData"],
+  default: { color: true },
+  negatable: ["color"],
+});
+
 export function add(a: number, b: number): number {
     return a + b;
 }

@@ -77,3 +77,18 @@ export function PipelineChain<TInput, TMiddleOutput, TLastOutput>(prev: IPipelin
     const chainedPair = new ChainedStagePair(prev, next)
     return chainedPair;
 }
+
+export async function RunPipeline<TInput, TOutput>(pipeline: IPipelineStage<TInput, TOutput>, input: TInput[]): Promise<TOutput[]> {
+    const outputs: TOutput[] = []
+    try {
+        await pipeline.process(input, async s => {outputs.push(...s)});
+        return outputs;
+    }
+    catch(e){
+        console.log("error", e)
+        for (const pipelineErr of pipeline.errors){
+            console.log(`- error in ${pipelineErr.stageName}`, pipelineErr.error, pipelineErr.inputs)
+        }
+        return outputs;
+    }
+}
