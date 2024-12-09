@@ -1,8 +1,8 @@
 import { JsonValue } from "jsr:@std/json/types";
 import { BasePipelineStage, PipelineStageSink } from "../pipelines.ts";
-import { exampleOutboxData, MastodonOutboxExport, MastodonOutboxItem, typecheckOutboxExport } from "./mastodonTypes.ts";
+import { exampleOutboxData, MastodonOutboxExport, MastodonOutboxItem, MastodonOutboxPost, typecheckOutboxExport } from "./mastodonTypes.ts";
 import * as path from "jsr:@std/path";
-import { exists } from "jsr:@std/fs";
+import { exists, existsSync } from "jsr:@std/fs";
 
 export class ExtractMastodonExportItems extends BasePipelineStage<JsonValue, MastodonOutboxItem> {
     public get name(): string {
@@ -30,10 +30,10 @@ export interface AttachmentFile {
 export type WithAttachments<T> = T & {
     foundAttachments: AttachmentFile[],
     missingAttachments: string[],
-    hasAnyAttachments: boolean,
+    hasAnyAttachments: boolean | null,
 }
 
-export class GatherMastodonAttachments extends BasePipelineStage<MastodonOutboxItem, WithAttachments<MastodonOutboxItem>> {
+export class GatherMastodonAttachments extends BasePipelineStage<MastodonOutboxPost, WithAttachments<MastodonOutboxPost>> {
 
     constructor(private extractedArchiveRootPath: string) {
         super()
@@ -42,9 +42,9 @@ export class GatherMastodonAttachments extends BasePipelineStage<MastodonOutboxI
     public get name(): string {
         return "GatherMastodonAttachments";
     }
-    protected async processInner(inputs: MastodonOutboxItem[], sink: PipelineStageSink<WithAttachments<MastodonOutboxItem>>): Promise<void> {
+    protected async processInner(inputs: MastodonOutboxPost[], sink: PipelineStageSink<WithAttachments<MastodonOutboxPost>>): Promise<void> {
         for (const input of inputs){
-            const result: WithAttachments<MastodonOutboxItem> = {...input, foundAttachments: [], missingAttachments: [], hasAnyAttachments: input.object.attachment.length > 0};
+            const result: WithAttachments<MastodonOutboxPost> = {...input, foundAttachments: [], missingAttachments: [], hasAnyAttachments: input.object.attachment.length > 0};
             for (const attachment of input.object.attachment){
                 console.log("test url", attachment.url)
                 const attachmentPath = getMediaAttachmentPath(this.extractedArchiveRootPath, attachment.url);
@@ -54,7 +54,8 @@ export class GatherMastodonAttachments extends BasePipelineStage<MastodonOutboxI
                     continue;
                 }
                     console.log("testingg path", attachmentPath)
-                const found = await exists(attachmentPath);
+                // if async exists is used, there's some timing sensitivity and tests fail :/
+                const found = existsSync(attachmentPath);
                 if (!found){
                     result.missingAttachments.push(attachment.url)
                     continue;

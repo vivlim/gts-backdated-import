@@ -1,8 +1,13 @@
 {
     "tasks": {
-        "dev": "deno run --watch main.ts"
+        "cli": "deno run main.ts"
     },
-    "imports": { "@std/assert": "jsr:@std/assert@1", "megalodon": "npm:megalodon@^10.0.7" },
+    "imports": {
+        "@std/assert": "jsr:@std/assert@1",
+        "key-file-storage": "npm:key-file-storage@^2.3.3",
+        "luxon": "npm:luxon@^3.5.0",
+        "megalodon": "npm:megalodon@^10.0.7"
+    },
     "fmt": {
         "useTabs": false,
         "lineWidth": 300,

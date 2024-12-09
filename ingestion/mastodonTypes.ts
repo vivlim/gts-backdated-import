@@ -14,7 +14,9 @@ export const exampleOutboxData = {
       "to": [
         "https://botsin.space/users/vivdev/followers"
       ],
-      "cc": [],
+      "cc": [
+        "placeholder"
+      ],
       "object": {
         "id": "https://botsin.space/users/vivdev/statuses/113599784910969099",
         "type": "Note",
@@ -26,10 +28,10 @@ export const exampleOutboxData = {
         "to": [
           "https://botsin.space/users/vivdev/followers"
         ],
-        "cc": [],
+        "cc": ["placeholder"],
         "sensitive": false,
         "atomUri": "https://botsin.space/users/vivdev/statuses/113599784910969099",
-        "inReplyToAtomUri": null,
+        "inReplyToAtomUri": "placeholder",
         "conversation": "tag:botsin.space,2024-12-05:objectId=135371558:objectType=Conversation",
         "content": "<p>this is one of two posts</p>",
         "contentMap": {
@@ -38,8 +40,7 @@ export const exampleOutboxData = {
         "attachment": [
             {"type":"Document","mediaType":"image/jpeg","url":"/instancename/media_attachments/files/109/215/002/346/601/852/original/133931bba7cb42da.jpg","name":"string"}
         ],
-
-        "tag": [],
+        "tag": [{"type":"Mention"}], // omit other properties, other types of tags appear. like emoji
         "replies": {
           "id": "https://botsin.space/users/vivdev/statuses/113599784910969099/replies",
           "type": "Collection",
@@ -47,7 +48,7 @@ export const exampleOutboxData = {
             "type": "CollectionPage",
             "next": "https://botsin.space/users/vivdev/statuses/113599784910969099/replies?only_other_accounts=true&page=true",
             "partOf": "https://botsin.space/users/vivdev/statuses/113599784910969099/replies",
-            "items": []
+            "items": ["placeholder"]
           }
         },
         "likes": {
@@ -120,25 +121,38 @@ export const exampleOutboxData = {
 
 export type MastodonOutboxExport = typeof exampleOutboxData;
 
-export type MastodonOutboxItem = typeof exampleOutboxData.orderedItems[0] | typeof exampleOutboxData.orderedItems[1]
+export type MastodonOutboxItem = MastodonOutboxPost | MastodonOutboxLinkedPost
+
+export type MastodonOutboxPost = typeof exampleOutboxData.orderedItems[0] | typeof exampleOutboxData.orderedItems[1]
+export type MastodonOutboxLinkedPost = {
+    id: string,
+    type: string,
+    actor:string,
+    published:string,
+    to: string[],
+    cc: string[],
+    object: string,
+}
 
 //** handle specific properties by name */
 function typecheckSpecialCaseProperties(x: any, propertyName: string) : boolean {
     const t = typeof x;
+    const nullableStrings = ["inReplyTo", "summary", "inReplyToAtomUri", "conversation"]
     if (t === 'string'){
-        // nullable properties which are null in our example data, but may be strings
-        const nullableStringProperties = ["inReplyTo"]
-        if (nullableStringProperties.indexOf(propertyName) >= 0){
+        if (nullableStrings.indexOf(propertyName) >= 0){
             return true;
         }
     }
 
     if (t === 'object'){
-        // nullable properties which are null in our example data, but may be objects of unspecified type.
-        const nullableObjectProperties: string[] = [];
-        if (nullableObjectProperties.indexOf(propertyName) >= 0){
+        if (nullableStrings.indexOf(propertyName) >= 0){
             return true;
         }
+    }
+
+    if (t === 'string' && propertyName === "object"){
+        // The object is a link and is not actually here.
+        return true;
     }
 
     return false;
