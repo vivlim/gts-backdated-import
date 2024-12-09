@@ -1,52 +1,7 @@
-{
-  "@context": [
-    "https://www.w3.org/ns/activitystreams",
-    "https://w3id.org/security/v1",
-    {
-      "manuallyApprovesFollowers": "as:manuallyApprovesFollowers",
-      "sensitive": "as:sensitive",
-      "Hashtag": "as:Hashtag",
-      "movedTo": {
-        "@id": "as:movedTo",
-        "@type": "@id"
-      },
-      "alsoKnownAs": {
-        "@id": "as:alsoKnownAs",
-        "@type": "@id"
-      },
-      "toot": "http://joinmastodon.org/ns#",
-      "Emoji": "toot:Emoji",
-      "featured": {
-        "@id": "toot:featured",
-        "@type": "@id"
-      },
-      "featuredTags": {
-        "@id": "toot:featuredTags",
-        "@type": "@id"
-      },
-      "schema": "http://schema.org#",
-      "PropertyValue": "schema:PropertyValue",
-      "value": "schema:value",
-      "ostatus": "http://ostatus.org#",
-      "atomUri": "ostatus:atomUri",
-      "inReplyToAtomUri": "ostatus:inReplyToAtomUri",
-      "conversation": "ostatus:conversation",
-      "focalPoint": {
-        "@container": "@list",
-        "@id": "toot:focalPoint"
-      },
-      "blurhash": "toot:blurhash",
-      "discoverable": "toot:discoverable",
-      "indexable": "toot:indexable",
-      "memorial": "toot:memorial",
-      "votersCount": "toot:votersCount",
-      "suspended": "toot:suspended",
-      "attributionDomains": {
-        "@id": "toot:attributionDomains",
-        "@type": "@id"
-      }
-    }
-  ],
+import { JsonValue } from "jsr:@std/json/types";
+
+export const exampleOutboxData = {
+// The context is omitted since it's not interesting for our purposes and messes with parsing.
   "id": "outbox.json",
   "type": "OrderedCollection",
   "totalItems": 2,
@@ -80,7 +35,10 @@
         "contentMap": {
           "en": "<p>this is one of two posts</p>"
         },
-        "attachment": [],
+        "attachment": [
+            {"type":"Document","mediaType":"image/jpeg","url":"/instancename/media_attachments/files/109/215/002/346/601/852/original/133931bba7cb42da.jpg","name":"string"}
+        ],
+
         "tag": [],
         "replies": {
           "id": "https://botsin.space/users/vivdev/statuses/113599784910969099/replies",
@@ -158,4 +116,89 @@
       }
     }
   ]
+}
+
+export type MastodonOutboxExport = typeof exampleOutboxData;
+
+export type MastodonOutboxItem = typeof exampleOutboxData.orderedItems[0] | typeof exampleOutboxData.orderedItems[1]
+
+//** handle specific properties by name */
+function typecheckSpecialCaseProperties(x: any, propertyName: string) : boolean {
+    const t = typeof x;
+    if (t === 'string'){
+        // nullable properties which are null in our example data, but may be strings
+        const nullableStringProperties = ["inReplyTo"]
+        if (nullableStringProperties.indexOf(propertyName) >= 0){
+            return true;
+        }
+    }
+
+    if (t === 'object'){
+        // nullable properties which are null in our example data, but may be objects of unspecified type.
+        const nullableObjectProperties: string[] = [];
+        if (nullableObjectProperties.indexOf(propertyName) >= 0){
+            return true;
+        }
+    }
+
+    return false;
+}
+
+export function typecheckOutboxExport(data: JsonValue): MastodonOutboxExport {
+    shallowTypeCheck<MastodonOutboxExport>(exampleOutboxData, data);
+    return data as MastodonOutboxExport;
+}
+
+function shallowTypeCheck<T>(expected: T, actual: any): void {
+    if (typeof expected === 'function' && typeof actual !== 'function'){
+        return expected(actual)
+    }
+
+    if (expected === undefined && actual === undefined){
+        return;
+    }
+    if (expected === null && actual === null){
+        return;
+    }
+
+    if (Array.isArray(expected) && Array.isArray(actual)){
+        const compareTo = expected[0];
+        try {
+        // @ts-ignore
+        return actual.map(x => shallowTypeCheck<typeof expected[0]>(compareTo, x));
+        }
+        catch (e){
+            if (e instanceof Error){
+                throw new Error(`Mismatch when checking array of length ${expected.length}: ${e.message}`)
+            }
+            throw new Error(`Mismatch when checking array at length ${expected.length}: ${e}`)
+        }
+    }
+
+    if (typeof expected !== typeof actual){
+        throw new Error(`Mismatch between types; expected ${typeof expected} but found a ${typeof actual} (value: ${JSON.stringify(actual)})`)
+    }
+
+    if (typeof actual === 'function'){
+        throw new Error("Typechecking functions is not supported")
+    }
+
+    if (typeof actual === 'object' && typeof expected === 'object'){
+        for (const propName of Object.keys(expected!)){
+            try {
+                const actualValue = actual[propName];
+                // @ts-ignore
+                const expectedValue = expected[propName];
+                if (!typecheckSpecialCaseProperties(actualValue, propName)){
+                    shallowTypeCheck(expectedValue, actualValue)
+                }
+            }
+            catch (e){
+                if (e instanceof Error){
+                    throw new Error(`Mismatch when checking property ${propName}: ${e.message}`)
+                }
+                throw new Error(`Mismatch when checking property ${propName}: ${e}`)
+            }
+        }
+    }
 }

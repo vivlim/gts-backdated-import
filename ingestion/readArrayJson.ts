@@ -27,5 +27,4 @@ export class ReadJsonFileAsArrayStage extends BasePipelineStage<Filename, JsonVa
                 }));
         }
     }
-
 }

@@ -9,6 +9,7 @@
       "jsr:@std/fs": "jsr:@std/fs@1.0.6",
       "jsr:@std/internal@^1.0.5": "jsr:@std/internal@1.0.5",
       "jsr:@std/json": "jsr:@std/json@1.0.1",
+      "jsr:@std/path": "jsr:@std/path@1.0.8",
       "jsr:@std/path@^1.0.8": "jsr:@std/path@1.0.8",
       "jsr:@std/streams": "jsr:@std/streams@1.0.8",
       "jsr:@std/streams@^1.0.7": "jsr:@std/streams@1.0.8",

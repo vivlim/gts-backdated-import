@@ -2,6 +2,7 @@ export interface IPipelineStage<TInput, TOutput> {
     process(inputs: TInput[], sink: PipelineStageSink<TOutput>): Promise<void>;
     get errors(): PipelineError[]
     set stopOnError(value: boolean)
+    into<TNewFinalOutput>(target: IPipelineStage<TOutput, TNewFinalOutput>): IPipelineStage<TInput, TNewFinalOutput>;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -33,6 +34,10 @@ class ChainedStagePair<TInput, TMiddleOutput, TLastOutput> implements IPipelineS
         await this.prev.process(inputs, async middleOutput => {
             await this.next.process(middleOutput, finalOutput => sink(finalOutput));
         });
+    }
+    
+    into<TNewFinalOutput>(target: IPipelineStage<TLastOutput, TNewFinalOutput>): IPipelineStage<TInput, TNewFinalOutput> {
+        return PipelineChain(this, target);
     }
 }
 
@@ -68,6 +73,10 @@ export abstract class BasePipelineStage<TInput, TOutput> implements IPipelineSta
                 }
             }
         }
+    }
+
+    into<TNewFinalOutput>(target: IPipelineStage<TOutput, TNewFinalOutput>): IPipelineStage<TInput, TNewFinalOutput> {
+        return PipelineChain(this, target);
     }
 
     protected abstract processInner(inputs: TInput[], sink: PipelineStageSink<TOutput>): Promise<void>
