@@ -2,6 +2,11 @@ import { Entity, MegalodonInterface } from "megalodon";
 import { IArchivedPost } from "../ingestion/main.ts";
 import { BasePipelineStage, PipelineStageSink } from "../pipelines.ts";
 import { unwrapResponse } from "../util.ts";
+import { AttachmentFile, WithAttachments } from "../ingestion/readMastodonBackup.ts";
+import { Buffer } from "jsr:@std/streams/buffer";
+import { StreamConv } from "../streamconvert.ts";
+import * as nodeBuffer from "node:buffer"
+import { basename } from "jsr:@std/path@^1.0.8";
 
 export interface IRepublishedPost {
     post: IArchivedPost,
@@ -12,11 +17,12 @@ export interface RepublishPostsConfig {
 
 }
 
-export type MegalodonDraft = {
+export type MegalodonDraft = WithAttachments<{
     text: string,
     options: MegalodonPostOptions,
     source: IArchivedPost,
-}
+}>
+
 export type MegalodonPostOptions = {
         media_ids?: Array<string>;
         poll?: {
@@ -51,6 +57,9 @@ export class DraftArchivedPosts extends BasePipelineStage<IArchivedPost, Megalod
                     visibility: "public"
                 },
                 source: input,
+                foundAttachments: input.foundAttachments,
+                hasAnyAttachments: input.hasAnyAttachments,
+                missingAttachments: input.missingAttachments,
             }
 
             await sink([draft]);
@@ -69,7 +78,22 @@ export class RepublishPosts extends BasePipelineStage<MegalodonDraft, IRepublish
     }
     protected async processInner(inputs: MegalodonDraft[], sink: PipelineStageSink<IRepublishedPost>): Promise<void> {
         for (const draft of inputs){
-            const result = await this.client.postStatus(draft.text, draft.options)
+            let options = {...draft.options}
+
+            if (draft.hasAnyAttachments){
+                options.media_ids = [];
+
+                for (let attachment of draft.foundAttachments){
+                    const attachmentData = await Deno.open(attachment.filePath)
+                    const stream = new StreamConv(attachmentData.readable, basename(attachment.filePath))
+                    const upload = unwrapResponse(await this.client.uploadMedia(stream, {
+                        description: attachment.altText,
+                    }));
+                    options.media_ids.push(upload.id);
+                }
+            }
+
+            const result = await this.client.postStatus(draft.text, options)
             // not scheduling so assert that it's a normal status
             const status = unwrapResponse(result) as Entity.Status;
 
