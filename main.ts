@@ -11,6 +11,7 @@ import { authenticate } from "./client/auth.ts";
 import { MegalodonInterface } from "megalodon";
 import { LimitByCount, EchoJson, FilterStage } from "./pipelineutils.ts";
 import { DraftArchivedPosts, RepublishPosts, RepublishPostsConfig } from "./publishing/republishPosts.ts";
+import { PostContentToMarkdown } from "./publishing/rehypeTransformText.ts";
 
 async function main(): Promise<void> {
     const flags = parseArgs(Deno.args, {
@@ -85,6 +86,7 @@ async function publishUnpublishedArchivePosts(partition: DbPartition, client: Me
         .into(new LoadArchivedPostDataFromDb())
         .into(new FilterStage(p => p.hasAnyAttachments === true))
         .into(new LimitByCount(1))
+        .into(new PostContentToMarkdown())
         .into(new DraftArchivedPosts(client, config))
         //.into(new EchoJson())
         .into(new RepublishPosts(client, config))
