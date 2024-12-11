@@ -53,6 +53,53 @@
         },
         {
             "request": "launch",
+            "name": "Build backdating sql",
+            "type": "node",
+            "program": "${workspaceFolder}/main.ts",
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "runtimeExecutable": "deno",
+            "runtimeArgs": [
+                "run",
+                "--unstable-kv",
+                "--inspect-wait",
+                "--allow-read",
+                "--allow-write",
+                "--allow-env",
+                "--allow-net"
+            ],
+            "args": [
+                "--backdating-query",
+                "--targetAcct",
+                "test_a@electron.phosphor.buzz",
+            ],
+            "attachSimplePort": 9229
+        },
+        {
+            "request": "launch",
+            "name": "Request deletion of republishes",
+            "type": "node",
+            "program": "${workspaceFolder}/main.ts",
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "runtimeExecutable": "deno",
+            "runtimeArgs": [
+                "run",
+                "--unstable-kv",
+                "--inspect-wait",
+                "--allow-read",
+                "--allow-env",
+                "--allow-net"
+            ],
+            "args": [
+                "--delete",
+                "--targetAcct",
+                "test_a@electron.phosphor.buzz",
+            ],
+            "attachSimplePort": 9229
+        },
+        {
+            "request": "launch",
             "name": "Launch Program2",
             "type": "node",
             "program": "${workspaceFolder}/main.ts",

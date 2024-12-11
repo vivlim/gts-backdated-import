@@ -68,3 +68,47 @@ export class AsyncFilterStage<T> extends BasePipelineStage<T, T> {
         }
     }
 }
+
+export class InteractiveConfirmation<T> extends BasePipelineStage<T, T> {
+    constructor(private readonly messageBuilder: ((x: T) => string)){
+        super();
+    }
+
+    public get name(): string {
+        return `InteractiveConfirmation`
+    }
+
+    protected async processInner(inputs: T[], sink: PipelineStageSink<T>): Promise<void> {
+        for (const input of inputs){
+            const msg = this.messageBuilder(input)
+            if (confirm(msg)){
+                console.log("user accepted; forwarding item")
+                await sink([input]);
+            }
+            else {
+                console.log("user rejected; dropping item")
+            }
+            
+        }
+    }
+}
+
+export class WriteLinesToFile<T> extends BasePipelineStage<T, T> {
+    constructor(public readonly path: string, private readonly lineBuilder: ((x: T) => string)){
+        super();
+    }
+
+    public get name(): string {
+        return `WriteLinesToFile`
+    }
+
+    protected async processInner(inputs: T[], sink: PipelineStageSink<T>): Promise<void> {
+        for (const input of inputs){
+            const line = this.lineBuilder(input)
+            await Deno.writeTextFile(this.path, line + "\n", {
+                append: true
+            })
+            await sink([input])
+        }
+    }
+}

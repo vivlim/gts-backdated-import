@@ -52,7 +52,3 @@ export class StreamConv extends mod.Readable {
         await this.reader.releaseLock();
     }
 }
-
-export function convert(stream: ReadableStream) {
-    return new StreamConv(stream);
-}

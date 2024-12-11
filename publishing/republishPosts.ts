@@ -104,3 +104,35 @@ export class RepublishPosts extends BasePipelineStage<MegalodonDraft, IRepublish
         }
     }
 }
+
+export class EchoRepublishedPosts extends BasePipelineStage<IRepublishedPost, IRepublishedPost> {
+    public get name(): string {
+        return "EchoRepublishedPosts"
+    }
+    protected async processInner(inputs: IRepublishedPost[], sink: PipelineStageSink<IRepublishedPost>): Promise<void> {
+        for (const input of inputs){
+            console.log(`republished ${input.status.url} - originally ${input.post.originalUrl} @ ${input.post.originalDate}: '${input.post.text.substring(0, 15)}'`)
+            await sink([input])
+        }
+    }
+}
+
+export class DeleteRepublishedPostsFromInstance extends BasePipelineStage<IRepublishedPost, IRepublishedPost> {
+    constructor(private readonly client: MegalodonInterface){
+        super()
+    }
+
+    public get name(): string {
+        return "DeleteRepublishedPostsFromInstance"
+    }
+    protected async processInner(inputs: IRepublishedPost[], sink: PipelineStageSink<IRepublishedPost>): Promise<void> {
+        for (const input of inputs){
+            console.log(`requesting to delete status ${input.status.id} which was at ${input.status.url}`)
+            const result = await this.client.deleteStatus(input.status.id) // doesn't seem to work on deno: https://github.com/denoland/deno/issues/22565
+            // not scheduling so assert that it's a normal status
+            unwrapResponse(result)
+
+            await sink([input])
+        }
+    }
+}

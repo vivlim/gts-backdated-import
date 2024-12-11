@@ -1,4 +1,5 @@
 import { Response } from "megalodon";
+import {DateTime} from "luxon"
 export class AsyncLazy<T> {
     private constructedValue: T | null = null;
     private error: Error | unknown | null = null;
@@ -41,4 +42,8 @@ export function unwrapResponse<T>(response: Response<T>, label?: string | undefi
     }
 
     return response.data;
+}
+
+export function timestampForFilename(){
+     return DateTime.now().toFormat("yy-MM-dd_HH-mm-ss");
 }
