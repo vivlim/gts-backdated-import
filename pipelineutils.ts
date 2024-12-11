@@ -1,3 +1,4 @@
+import process from "node:process";
 import { BasePipelineStage, PipelineStageSink } from "./pipelines.ts";
 
 export class LimitByCount<T> extends BasePipelineStage<T, T> {
@@ -17,6 +18,24 @@ export class LimitByCount<T> extends BasePipelineStage<T, T> {
                 await sink([input])
             }
         }
+    }
+}
+
+export class CountItems<T> extends BasePipelineStage<T, T> {
+    public itemCount: number = 0;
+    public get name(): string {
+        return `CountItems`
+    }
+
+    protected async processInner(inputs: T[], sink: PipelineStageSink<T>): Promise<void> {
+        for (const input of inputs){
+            this.itemCount += 1;
+            await sink([input])
+        }
+    }
+
+    public toString(): string {
+        return `${this.itemCount}`
     }
 }
 
@@ -108,6 +127,40 @@ export class WriteLinesToFile<T> extends BasePipelineStage<T, T> {
             await Deno.writeTextFile(this.path, line + "\n", {
                 append: true
             })
+            await sink([input])
+        }
+    }
+}
+
+export class DelayStage<T> extends BasePipelineStage<T, T> {
+    constructor(private readonly durationMs: number){
+        super();
+    }
+
+    public get name(): string {
+        return `DelayStage(${this.durationMs} ms)`
+    }
+
+    protected async processInner(inputs: T[], sink: PipelineStageSink<T>): Promise<void> {
+        for (const input of inputs){
+            await new Promise(resolve => setTimeout(resolve, this.durationMs))
+            await sink([input])
+        }
+    }
+}
+
+export class StderrWriteEachItem<T> extends BasePipelineStage<T, T> {
+    constructor(private readonly messageBuilder: ((x: T) => string)){
+        super();
+    }
+
+    public get name(): string {
+        return `StderrWriteEachItem`
+    }
+
+    protected async processInner(inputs: T[], sink: PipelineStageSink<T>): Promise<void> {
+        for (const input of inputs){
+            process.stderr.write(this.messageBuilder(input))
             await sink([input])
         }
     }

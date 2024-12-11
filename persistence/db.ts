@@ -94,3 +94,15 @@ export class LoadArchivedPostDataFromDb extends BasePipelineStage<Deno.KvKey, IA
         }
     }
 }
+
+export class FilterNonPublicMastodonPosts extends BasePipelineStage<IArchivedPost, IArchivedPost> {
+    public get name(): string {
+        return "FilterNonPublicMastodonPosts"
+    }
+    protected async processInner(inputs: IArchivedPost[], sink: PipelineStageSink<IArchivedPost>): Promise<void> {
+        for (const input of inputs){
+            // Need to check what it means for https://www.w3.org/ns/activitystreams#Public to be in 'to' and 'cc'
+            throw new Error("not implemented")
+        }
+    }
+}

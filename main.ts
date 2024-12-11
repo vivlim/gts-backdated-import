@@ -9,8 +9,8 @@ import { IArchivedPost } from "./ingestion/main.ts";
 import { DbPartition, LoadArchivedPostDataFromDb, LoadArchivedPostKeysFromDb, LoadArchivedPostsToDb } from "./persistence/db.ts";
 import { authenticate } from "./client/auth.ts";
 import { MegalodonInterface } from "megalodon";
-import { LimitByCount, EchoJson, FilterStage, InteractiveConfirmation, WriteLinesToFile } from "./pipelineutils.ts";
-import { DeleteRepublishedPosts, DeleteRepublishedPostsFromInstance, DraftArchivedPosts, EchoRepublishedPosts, IRepublishedPost, RepublishPosts, RepublishPostsConfig } from "./publishing/republishPosts.ts";
+import { LimitByCount, EchoJson, FilterStage, InteractiveConfirmation, WriteLinesToFile, CountItems, DelayStage, StderrWriteEachItem } from "./pipelineutils.ts";
+import { DeleteRepublishedPosts, DeleteRepublishedPostsFromInstance, DraftArchivedPosts, EchoRepublishedPosts, GetRepublishedPostsMissingFromInstance, IRepublishedPost, RepublishPosts, RepublishPostsConfig } from "./publishing/republishPosts.ts";
 import { PostContentToMarkdown } from "./publishing/rehypeTransformText.ts";
 import { DeleteRepublishedPostsFromDb, DropRepublishedPosts, KeepRepublishedPosts, LoadRepublishedPostsFromDb, RecordRepublishToDb } from "./publishing/db.ts";
 import { timestampForFilename } from "./util.ts";
@@ -27,11 +27,14 @@ function helpText(){
     console.log("")
     console.log("Generate postgres query to backdate republished posts")
     console.log("  ./run.sh --targetAcct account@instance.tld --backdating-query")
+    console.log("")
+    console.log("Check if any republished posts have been deleted so they can be attempted again")
+    console.log("  ./run.sh --targetAcct account@instance.tld --check-deletions")
 }
 async function main(): Promise<void> {
     const flags = parseArgs(Deno.args, {
-    boolean: ["help", "publish", "delete", "backdating-query"],
-    string: ["exportPath", "targetAcct"],
+    boolean: ["help", "publish", "delete", "backdating-query", "check-deletions"],
+    string: ["exportPath", "targetAcct", "inspect"],
     });
 
     if (flags.help){
@@ -55,9 +58,19 @@ async function main(): Promise<void> {
         Deno.exit(await gatherPosts(flags.exportPath, partition));
     }
 
+    if (flags.inspect !== undefined){
+        console.log("Reading export", flags.exportPath)
+        Deno.exit(await inspectByOriginalUrl(flags.inspect, partition));
+    }
+
     if (flags["backdating-query"]){
         console.log("Building backdating queries", flags.exportPath)
         Deno.exit(await buildBackdatingQueries(partition));
+    }
+
+    if (flags["check-deletions"]){
+        console.log("Checking for deleted republished posts", flags.exportPath)
+        Deno.exit(await checkForDeletedRepublishedPosts(partition, client));
     }
 
     if (flags.delete){
@@ -110,13 +123,18 @@ async function publishUnpublishedArchivePosts(partition: DbPartition, client: Me
 
     const config: RepublishPostsConfig = {}
 
+    const archivedPostsCounter = new CountItems()
+    const eligiblePostsCounter = new CountItems()
+
     const pipeline = new LoadArchivedPostKeysFromDb()
         .into(new LoadArchivedPostDataFromDb())
         .into(new FilterStage(p => p.inReplyTo === null)) // Don't republish replies.
         //.into(new FilterStage(p => p.hasAnyAttachments === true))
         //.into(new FilterStage(p => p.sensitive === true))
+        .into(archivedPostsCounter)
         .into(new LoadRepublishedPostsFromDb(partition))
         .into(new DropRepublishedPosts())
+        .into(eligiblePostsCounter)
         .into(new LimitByCount(10))
         .into(new PostContentToMarkdown())
         .into(new DraftArchivedPosts(client, config))
@@ -128,6 +146,20 @@ async function publishUnpublishedArchivePosts(partition: DbPartition, client: Me
         pipeline.stopOnError = true
 
     const result = await RunPipeline(pipeline, [partition])
+
+    console.log("")
+    console.log(`${result.length} posts were republished this run.`)
+    console.log(`${eligiblePostsCounter} archived posts were eligible to be republished this run, ${archivedPostsCounter} archived posts are eligible overall.`)
+
+    const republishedPosts = await RunPipeline(
+        new LoadArchivedPostKeysFromDb()
+            .into(new LoadArchivedPostDataFromDb())
+            .into(new LoadRepublishedPostsFromDb(partition))
+            .into(new KeepRepublishedPosts()),
+        [partition]
+    )
+
+    console.log(`${republishedPosts.length} have been republished now or previously.`)
 
     if (pipeline.errors.length > 0){
         return 1
@@ -177,6 +209,61 @@ async function buildBackdatingQueries(partition: DbPartition): Promise<number>{
     const result = await RunPipeline(pipeline, [partition])
 
     console.log(`wrote query to ${sqlwriter.path} for ${result.length} republished posts.`)
+
+    if (pipeline.errors.length > 0){
+        return 1
+    }
+    return 0
+}
+
+async function checkForDeletedRepublishedPosts(partition: DbPartition, client: MegalodonInterface): Promise<number>{
+
+    const republishedCounter = new CountItems()
+    const pipeline = new LoadArchivedPostKeysFromDb()
+        .into(new LoadArchivedPostDataFromDb())
+        .into(new LoadRepublishedPostsFromDb(partition))
+        .into(new KeepRepublishedPosts())
+        .into(republishedCounter)
+        .into(new DelayStage(1000))
+        .into(new StderrWriteEachItem((p) => '?'))
+        .into(new GetRepublishedPostsMissingFromInstance(client))
+        .into(new StderrWriteEachItem((p) => 'x'))
+        .into(new DeleteRepublishedPostsFromDb(partition)) // remove anything that's been deleted remotely from the local republished posts, so we can try again.
+        pipeline.stopOnError = true
+
+    const result = await RunPipeline(pipeline, [partition])
+
+    console.log();
+    console.log(`out of ${republishedCounter.itemCount} republished posts, ${result.length} have been deleted remotely:`)
+
+    for (const deleted of result){
+        console.log(`- ${deleted.post.originalUrl} : '${deleted.post.text.substring(0, 15)}'`)
+    }
+
+    if (pipeline.errors.length > 0){
+        return 1
+    }
+    return 0
+}
+
+async function inspectByOriginalUrl(originalUrl: string, partition: DbPartition): Promise<number>{
+
+    const republishedCounter = new CountItems()
+    const pipeline = new LoadArchivedPostKeysFromDb()
+        .into(new LoadArchivedPostDataFromDb())
+        .into(new LoadRepublishedPostsFromDb(partition))
+        .into(new FilterStage((p) => {
+            if ('status' in p){
+                return p.post.originalUrl === originalUrl;
+            }
+            return p.originalUrl === originalUrl;
+        }))
+        pipeline.stopOnError = true
+
+    const result = await RunPipeline(pipeline, [partition])
+
+    console.log();
+    console.log(JSON.stringify(result, null, 2))
 
     if (pipeline.errors.length > 0){
         return 1

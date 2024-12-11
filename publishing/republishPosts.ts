@@ -7,6 +7,7 @@ import { Buffer } from "jsr:@std/streams/buffer";
 import { StreamConv } from "../streamconvert.ts";
 import * as nodeBuffer from "node:buffer"
 import { basename } from "jsr:@std/path@^1.0.8";
+import {DateTime} from "luxon"
 
 export interface IRepublishedPost {
     post: IArchivedPost,
@@ -111,7 +112,7 @@ export class EchoRepublishedPosts extends BasePipelineStage<IRepublishedPost, IR
     }
     protected async processInner(inputs: IRepublishedPost[], sink: PipelineStageSink<IRepublishedPost>): Promise<void> {
         for (const input of inputs){
-            console.log(`republished ${input.status.url} - originally ${input.post.originalUrl} @ ${input.post.originalDate}: '${input.post.text.substring(0, 15)}'`)
+            console.log(`republished ${input.status.url} - originally ${input.post.originalUrl} @ ${new DateTime(input.post.originalDate)}: '${input.post.text.substring(0, 15)}'`)
             await sink([input])
         }
     }
@@ -133,6 +134,24 @@ export class DeleteRepublishedPostsFromInstance extends BasePipelineStage<IRepub
             unwrapResponse(result)
 
             await sink([input])
+        }
+    }
+}
+
+export class GetRepublishedPostsMissingFromInstance extends BasePipelineStage<IRepublishedPost, IRepublishedPost> {
+    constructor(private readonly client: MegalodonInterface){
+        super()
+    }
+
+    public get name(): string {
+        return "GetRepublishedPostsMissingFromInstance"
+    }
+    protected async processInner(inputs: IRepublishedPost[], sink: PipelineStageSink<IRepublishedPost>): Promise<void> {
+        for (const input of inputs){
+            const searchResult = unwrapResponse(await this.client.search(input.status.uri, {type: "statuses", limit: 1, resolve: false}))
+            if (searchResult.statuses.length === 0){
+                await sink([input])
+            }
         }
     }
 }
