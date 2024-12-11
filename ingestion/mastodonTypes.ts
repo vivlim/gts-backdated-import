@@ -75,8 +75,8 @@ export const exampleOutboxData = {
       "object": {
         "id": "https://botsin.space/users/vivdev/statuses/113599785306172885",
         "type": "Note",
-        "summary": null,
-        "inReplyTo": null,
+        "summary": "text",
+        "inReplyTo": "url",
         "published": "2024-12-05T10:39:21Z",
         "url": "https://botsin.space/@vivdev/113599785306172885",
         "attributedTo": "https://botsin.space/users/vivdev",

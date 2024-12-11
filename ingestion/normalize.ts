@@ -39,6 +39,7 @@ export class ArchivedMastodonPost implements IArchivedPost {
     public readonly foundAttachments: AttachmentFile[];
     public readonly missingAttachments: string[];
     public readonly hasAnyAttachments: boolean | null;
+    public readonly inReplyTo: string | null
 
     constructor(public source: MastodonOutboxPost | WithAttachments<MastodonOutboxPost>){
         const id = source.object.id.split('/').pop();
@@ -51,6 +52,12 @@ export class ArchivedMastodonPost implements IArchivedPost {
         this.text = source.object.content;
         this.sensitive = source.object.sensitive;
         this.warningText = source.object.summary ?? undefined; // TODO: is this right??
+        if (source.object.inReplyTo === null){
+            this.inReplyTo = null
+        }
+        else {
+            this.inReplyTo = source.object.inReplyTo;
+        }
         
         if ("hasAnyAttachments" in source){
             this.foundAttachments = source.foundAttachments;
