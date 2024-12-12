@@ -9,10 +9,10 @@ import { IArchivedPost } from "./ingestion/main.ts";
 import { DbPartition, LoadArchivedPostDataFromDb, LoadArchivedPostKeysFromDb, LoadArchivedPostsToDb } from "./persistence/db.ts";
 import { authenticate } from "./client/auth.ts";
 import { MegalodonInterface } from "megalodon";
-import { LimitByCount, EchoJson, FilterStage, InteractiveConfirmation, WriteLinesToFile, CountItems, DelayStage, StderrWriteEachItem } from "./pipelineutils.ts";
+import { LimitByCount, EchoJson, FilterStage, InteractiveConfirmation, WriteLinesToFile, CountItems, DelayStage, StderrWriteEachItem, WriteJsonToFile } from "./pipelineutils.ts";
 import { DeleteRepublishedPosts, DeleteRepublishedPostsFromInstance, DraftArchivedPosts, EchoRepublishedPosts, GetRepublishedPostsMissingFromInstance, IRepublishedPost, RepublishPosts, RepublishPostsConfig } from "./publishing/republishPosts.ts";
-import { PostContentToMarkdown } from "./publishing/rehypeTransformText.ts";
-import { DeleteRepublishedPostsFromDb, DropRepublishedPosts, KeepRepublishedPosts, LoadRepublishedPostsFromDb, RecordRepublishToDb } from "./publishing/db.ts";
+import { PostContentToMarkdown, RemoveAnchorTags } from "./publishing/rehypeTransformText.ts";
+import { DeleteRepublishedPostsFromDb, DropRepublishedPosts, FilterByVisibility, KeepRepublishedPosts, LoadRepublishedPostsFromDb, RecordRepublishToDb } from "./publishing/db.ts";
 import { timestampForFilename } from "./util.ts";
 import {DateTime} from "luxon";
 
@@ -59,8 +59,8 @@ async function main(): Promise<void> {
     }
 
     if (flags.inspect !== undefined){
-        console.log("Reading export", flags.exportPath)
-        Deno.exit(await inspectByOriginalUrl(flags.inspect, partition));
+        console.log("Inspecting by url", flags.exportPath)
+        Deno.exit(await inspectByUrl(flags.inspect, partition));
     }
 
     if (flags["backdating-query"]){
@@ -129,16 +129,22 @@ async function publishUnpublishedArchivePosts(partition: DbPartition, client: Me
     const pipeline = new LoadArchivedPostKeysFromDb()
         .into(new LoadArchivedPostDataFromDb())
         .into(new FilterStage(p => p.inReplyTo === null)) // Don't republish replies.
+        .into(new FilterByVisibility(['public'])) // Only republish public posts.
         //.into(new FilterStage(p => p.hasAnyAttachments === true))
         //.into(new FilterStage(p => p.sensitive === true))
+        .into(new FilterStage(p => p.hasAnyAttachments === true && p.foundAttachments[0].altText === null))
         .into(archivedPostsCounter)
         .into(new LoadRepublishedPostsFromDb(partition))
         .into(new DropRepublishedPosts())
         .into(eligiblePostsCounter)
-        .into(new LimitByCount(10))
+        //.into(new LimitByCount(5))
+        .into(new RemoveAnchorTags("botsin.space/media"))
         .into(new PostContentToMarkdown())
         .into(new DraftArchivedPosts(client, config))
+        .into(new FilterStage(d => d.text[0] !== '@')) // For bot import: drop any post that's tagging another user.
         //.into(new EchoJson())
+        //.into(new WriteJsonToFile('draft'))
+        //.into(new InteractiveConfirmation((x) => `text: '${x.text}'. looks ok?`))
         .into(new RepublishPosts(client, config))
         .into(new RecordRepublishToDb(partition))
         //.into(new EchoJson())
@@ -149,7 +155,7 @@ async function publishUnpublishedArchivePosts(partition: DbPartition, client: Me
 
     console.log("")
     console.log(`${result.length} posts were republished this run.`)
-    console.log(`${eligiblePostsCounter} archived posts were eligible to be republished this run, ${archivedPostsCounter} archived posts are eligible overall.`)
+    console.log(`${eligiblePostsCounter} archived posts were eligible to be republished this run, ${archivedPostsCounter} archived posts are eligible overall (of those processed - may be smaller if the pipeline stopped early)`)
 
     const republishedPosts = await RunPipeline(
         new LoadArchivedPostKeysFromDb()
@@ -246,24 +252,25 @@ async function checkForDeletedRepublishedPosts(partition: DbPartition, client: M
     return 0
 }
 
-async function inspectByOriginalUrl(originalUrl: string, partition: DbPartition): Promise<number>{
+async function inspectByUrl(url: string, partition: DbPartition): Promise<number>{
 
-    const republishedCounter = new CountItems()
     const pipeline = new LoadArchivedPostKeysFromDb()
         .into(new LoadArchivedPostDataFromDb())
         .into(new LoadRepublishedPostsFromDb(partition))
         .into(new FilterStage((p) => {
             if ('status' in p){
-                return p.post.originalUrl === originalUrl;
+                return p.post.originalUrl === url || p.status.url === url;
             }
-            return p.originalUrl === originalUrl;
+            return p.originalUrl === url;
         }))
         pipeline.stopOnError = true
 
     const result = await RunPipeline(pipeline, [partition])
 
     console.log();
-    console.log(JSON.stringify(result, null, 2))
+    const fn = `inspect_${timestampForFilename()}.jsonc`
+    await Deno.writeTextFile(fn, `/* inspection result for ${url} */\n\n${JSON.stringify(result, null, 2)}`)
+    console.log(`result written to ${fn}`)
 
     if (pipeline.errors.length > 0){
         return 1

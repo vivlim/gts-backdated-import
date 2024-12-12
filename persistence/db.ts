@@ -1,10 +1,12 @@
 import { BasePipelineStage, PipelineStageSink } from "../pipelines.ts";
 import { IArchivedPost } from "../ingestion/main.ts";
 import { AsyncLazy } from "../util.ts";
+import { KvToolbox, openKvToolbox } from "jsr:@kitsonk/kv-toolbox";
+import * as KvBlob from "jsr:@kitsonk/kv-toolbox/blob";
 
 export type DbPartition = string & { readonly __tag: unique symbol };
 
-export const dbConnection = new AsyncLazy(async () => {
+export const dbConnection = new AsyncLazy<Deno.Kv>(async () => {
     return await Deno.openKv();
 })
 
@@ -52,7 +54,7 @@ export class LoadArchivedPostsToDb extends BasePipelineStage<IArchivedPost, IArc
 
     public async savePostList() : Promise<void> {
         const db = await dbConnection.getValueAsync()
-        await db.set(dbKeyForPostList(this.partition), this.storedKeys);
+        await KvBlob.set(db, dbKeyForPostList(this.partition), KvBlob.toBlob(JSON.stringify(this.storedKeys)))
     }
 }
 
@@ -63,15 +65,18 @@ export class LoadArchivedPostKeysFromDb extends BasePipelineStage<DbPartition, D
 
     protected async processInner(inputs: DbPartition[], sink: PipelineStageSink<Deno.KvKey>): Promise<void> {
         const db = await dbConnection.getValueAsync()
+        const decoder = new TextDecoder("utf-8")
         for (const partition  of inputs){
-            const keys = await db.get<Deno.KvKey[]>(dbKeyForPostList(partition));
-            if (keys.value === null){
+            const keysData = await KvBlob.get(db, dbKeyForPostList(partition));
+            if (keysData.value === null){
                 throw new Error("No posts have been stored yet")
             }
+            const keysJson = decoder.decode(keysData.value)
+            const keys = JSON.parse(keysJson) as Deno.KvKey[]
 
-            console.log(`Loaded ${keys.value.length} posts from db`);
+            console.log(`Loaded ${keys.length} posts from db`);
 
-            for (const key of keys.value){
+            for (const key of keys){
                 await sink([key])
             }
         }

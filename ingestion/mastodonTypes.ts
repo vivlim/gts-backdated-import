@@ -34,11 +34,13 @@ export const exampleOutboxData = {
         "inReplyToAtomUri": "placeholder",
         "conversation": "tag:botsin.space,2024-12-05:objectId=135371558:objectType=Conversation",
         "content": "<p>this is one of two posts</p>",
-        "contentMap": {
+        /*"contentMap": {
           "en": "<p>this is one of two posts</p>"
-        },
+        },*/
         "attachment": [
-            {"type":"Document","mediaType":"image/jpeg","url":"/instancename/media_attachments/files/109/215/002/346/601/852/original/133931bba7cb42da.jpg","name":"string"}
+            {"type":"Document","mediaType":"image/jpeg","url":"/instancename/media_attachments/files/109/215/002/346/601/852/original/133931bba7cb42da.jpg","name":"string"},
+
+            {"type":"Document","mediaType":"image/jpeg","url":"/instancename/media_attachments/files/109/215/002/346/601/852/original/133931bba7cb42da.jpg","name":null}
         ],
         "tag": [{"type":"Mention"}], // omit other properties, other types of tags appear. like emoji
         "replies": {
@@ -71,7 +73,7 @@ export const exampleOutboxData = {
       "to": [
         "https://botsin.space/users/vivdev/followers"
       ],
-      "cc": [],
+      "cc": ["a"],
       "object": {
         "id": "https://botsin.space/users/vivdev/statuses/113599785306172885",
         "type": "Note",
@@ -137,7 +139,7 @@ export type MastodonOutboxLinkedPost = {
 //** handle specific properties by name */
 function typecheckSpecialCaseProperties(x: any, propertyName: string) : boolean {
     const t = typeof x;
-    const nullableStrings = ["inReplyTo", "summary", "inReplyToAtomUri", "conversation"]
+    const nullableStrings = ["inReplyTo", "summary", "inReplyToAtomUri", "conversation", "name"/*attachments may not include filename*/]
     if (t === 'string'){
         if (nullableStrings.indexOf(propertyName) >= 0){
             return true;

@@ -39,7 +39,8 @@ export class ArchivedMastodonPost implements IArchivedPost {
     public readonly foundAttachments: AttachmentFile[];
     public readonly missingAttachments: string[];
     public readonly hasAnyAttachments: boolean | null;
-    public readonly inReplyTo: string | null
+    public readonly inReplyTo: string | null;
+    public readonly visibility: IArchivedPost['visibility']
 
     constructor(public source: MastodonOutboxPost | WithAttachments<MastodonOutboxPost>){
         const id = source.object.id.split('/').pop();
@@ -70,6 +71,16 @@ export class ArchivedMastodonPost implements IArchivedPost {
             this.hasAnyAttachments = null;
         }
 
+        const pub: string = "https://www.w3.org/ns/activitystreams#Public";
+        if (source.to.includes(pub)) {
+            this.visibility = 'public'
+        }
+        else if (source.cc.includes(pub)) {
+            this.visibility = 'unlisted'
+        }
+        else {
+            this.visibility = 'other'
+        }
     }
 
 }

@@ -1,3 +1,6 @@
+import { join } from "jsr:@std/path@^1.0.8";
+import { timestampForFilename } from "./util.ts";
+
 export interface IPipelineStage<TInput, TOutput> {
     process(inputs: TInput[], sink: PipelineStageSink<TOutput>): Promise<void>;
     get errors(): PipelineError[]
@@ -95,8 +98,14 @@ export async function RunPipeline<TInput, TOutput>(pipeline: IPipelineStage<TInp
     }
     catch(e){
         console.log("error", e)
+
+        const ts = timestampForFilename();
+        Deno.mkdir(join("logs", ts), {recursive: true});
+        let errNum = 0;
         for (const pipelineErr of pipeline.errors){
-            console.log(`- error in ${pipelineErr.stageName}`, pipelineErr.error, pipelineErr.inputs)
+            const errFn = join("logs", ts, `err_${errNum++}_${pipelineErr.stageName.replaceAll(/[^a-zA-Z0-9]/g,'_')}.txt`)
+            console.log(`- error in ${pipelineErr.stageName}, see ${errFn}`)
+            await Deno.writeTextFile(errFn, `# ERROR\n${pipelineErr.error.stack}\n\n# INPUTS\n${JSON.stringify(pipelineErr.inputs, null, 2)}`)
         }
         return outputs;
     }

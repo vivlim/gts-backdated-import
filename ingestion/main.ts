@@ -7,8 +7,9 @@ interface IArchivedPostInner {
     originalDate: DateTime,
     text: string,
     sensitive: boolean,
-    warningText?: string
-    inReplyTo: string | null
+    warningText?: string,
+    inReplyTo: string | null,
+    visibility: 'public' | 'unlisted' | 'other'
 }
 export interface IArchivedPost extends WithAttachments<IArchivedPostInner> {
 }

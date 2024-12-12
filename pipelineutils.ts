@@ -1,5 +1,7 @@
 import process from "node:process";
 import { BasePipelineStage, PipelineStageSink } from "./pipelines.ts";
+import { timestampForFilename } from "./util.ts";
+import { join } from "jsr:@std/path@^1.0.8";
 
 export class LimitByCount<T> extends BasePipelineStage<T, T> {
     public processedCount: number = 0;
@@ -49,6 +51,24 @@ export class EchoJson<T> extends BasePipelineStage<T, T> {
             console.log(JSON.stringify(input, null, 2))
             await sink([input])
         }
+    }
+}
+
+export class WriteJsonToFile<T> extends BasePipelineStage<T, T> {
+    constructor(private readonly filenamePrefix: string){
+        super()
+
+    }
+    public get name(): string {
+        return `WriteJsonToFile`
+    }
+
+    protected async processInner(inputs: T[], sink: PipelineStageSink<T>): Promise<void> {
+        const fn = join('out',`${this.filenamePrefix}_${timestampForFilename()}.jsonc`)
+        await Deno.mkdir('out', {recursive: true});
+        await Deno.writeTextFile(fn, JSON.stringify(inputs, null, 2))
+        console.log(`json written to ${fn}`)
+        await sink(inputs)
     }
 }
 

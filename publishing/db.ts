@@ -102,3 +102,20 @@ export class KeepRepublishedPosts extends BasePipelineStage<IArchivedPost | IRep
         }
     }
 }
+
+export class FilterByVisibility extends BasePipelineStage<IArchivedPost,IArchivedPost> {
+    constructor(private readonly keep: (IArchivedPost['visibility'])[]){
+        super()
+    }
+    public get name(): string {
+        return `FilterByVisibility(${this.keep.join(',')})`
+    }
+
+    protected async processInner(inputs: IArchivedPost[], sink: PipelineStageSink<IArchivedPost>): Promise<void> {
+        for (const input of inputs){
+            if (this.keep.includes(input.visibility)){
+                await sink([input]);
+            }
+        }
+    }
+}
