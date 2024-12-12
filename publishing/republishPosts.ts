@@ -8,6 +8,8 @@ import { StreamConv } from "../streamconvert.ts";
 import * as nodeBuffer from "node:buffer"
 import { basename } from "jsr:@std/path@^1.0.8";
 import {DateTime} from "luxon"
+import { DirectClientState, getClientState} from "../client/auth.ts";
+import { DbPartition } from "../persistence/db.ts";
 
 export interface IRepublishedPost {
     post: IArchivedPost,
@@ -41,7 +43,7 @@ export type MegalodonPostOptions = {
     };
 
 export class DraftArchivedPosts extends BasePipelineStage<IArchivedPost, MegalodonDraft> {
-    constructor(private readonly client: MegalodonInterface, config: RepublishPostsConfig){
+    constructor(config: RepublishPostsConfig){
         super()
     }
 
@@ -119,7 +121,8 @@ export class EchoRepublishedPosts extends BasePipelineStage<IRepublishedPost, IR
 }
 
 export class DeleteRepublishedPostsFromInstance extends BasePipelineStage<IRepublishedPost, IRepublishedPost> {
-    constructor(private readonly client: MegalodonInterface){
+    private clientState: DirectClientState | undefined;
+    constructor(private readonly client: MegalodonInterface, private readonly partition: DbPartition, private readonly bypassMegalodon: boolean){
         super()
     }
 
@@ -129,12 +132,34 @@ export class DeleteRepublishedPostsFromInstance extends BasePipelineStage<IRepub
     protected async processInner(inputs: IRepublishedPost[], sink: PipelineStageSink<IRepublishedPost>): Promise<void> {
         for (const input of inputs){
             console.log(`requesting to delete status ${input.status.id} which was at ${input.status.url}`)
-            const result = await this.client.deleteStatus(input.status.id) // doesn't seem to work on deno: https://github.com/denoland/deno/issues/22565
-            // not scheduling so assert that it's a normal status
-            unwrapResponse(result)
+
+            if (this.bypassMegalodon){
+                await this.deleteStatusDirect(input.status.id);
+            }
+            else {
+                const result = await this.client.deleteStatus(input.status.id) // doesn't seem to work on deno: https://github.com/denoland/deno/issues/22565
+                unwrapResponse(result)
+            }
 
             await sink([input])
         }
+    }
+
+    async deleteStatusDirect(id: string): Promise<void>{
+        if (!this.bypassMegalodon){
+            throw new Error("shouldn't call this if not bypassing megalodon.")
+        }
+        if (this.clientState === undefined){
+            this.clientState = await getClientState(this.partition)
+        }
+
+        const deleteUrl = `${this.clientState.baseUrl}/api/v1/statuses/${id}`
+
+        console.log(`deleting ${id} via ${deleteUrl}`)
+        await fetch(deleteUrl, {
+            headers: this.clientState.headers,
+            method: "DELETE",
+        })
     }
 }
 

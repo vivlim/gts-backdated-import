@@ -30,6 +30,30 @@
         },
         {
             "request": "launch",
+            "name": "mark duplicates",
+            "type": "node",
+            "program": "${workspaceFolder}/main.ts",
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "runtimeExecutable": "deno",
+            "runtimeArgs": [
+                "run",
+                "--unstable-kv",
+                "--inspect-wait",
+                "--allow-read",
+                "--allow-write",
+                "--allow-env",
+                "--allow-net"
+            ],
+            "args": [
+                "--mark-duplicates",
+                "--targetAcct",
+                "test_a@electron.phosphor.buzz",
+            ],
+            "attachSimplePort": 9229
+        },
+        {
+            "request": "launch",
             "name": "Gather from archive StarHill",
             "type": "node",
             "program": "${workspaceFolder}/main.ts",
@@ -65,6 +89,7 @@
                 "--unstable-kv",
                 "--inspect-wait",
                 "--allow-read",
+                "--allow-write",
                 "--allow-env",
                 "--allow-net"
             ],

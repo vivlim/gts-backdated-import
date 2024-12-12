@@ -10,11 +10,12 @@ import { DbPartition, LoadArchivedPostDataFromDb, LoadArchivedPostKeysFromDb, Lo
 import { authenticate } from "./client/auth.ts";
 import { MegalodonInterface } from "megalodon";
 import { LimitByCount, EchoJson, FilterStage, InteractiveConfirmation, WriteLinesToFile, CountItems, DelayStage, StderrWriteEachItem, WriteJsonToFile } from "./pipelineutils.ts";
-import { DeleteRepublishedPosts, DeleteRepublishedPostsFromInstance, DraftArchivedPosts, EchoRepublishedPosts, GetRepublishedPostsMissingFromInstance, IRepublishedPost, RepublishPosts, RepublishPostsConfig } from "./publishing/republishPosts.ts";
+import { DeleteRepublishedPostsFromInstance, DraftArchivedPosts, EchoRepublishedPosts, GetRepublishedPostsMissingFromInstance, IRepublishedPost, RepublishPosts, RepublishPostsConfig } from "./publishing/republishPosts.ts";
 import { PostContentToMarkdown, RemoveAnchorTags } from "./publishing/rehypeTransformText.ts";
 import { DeleteRepublishedPostsFromDb, DropRepublishedPosts, FilterByVisibility, KeepRepublishedPosts, LoadRepublishedPostsFromDb, RecordRepublishToDb } from "./publishing/db.ts";
 import { timestampForFilename } from "./util.ts";
 import {DateTime} from "luxon";
+import { CollectDuplicates, FilterDuplicatedPosts, ForgetDuplicatePosts, recordDuplicatesToDb } from "./publishing/deduplication.ts";
 
 function helpText(){
     console.log("USAGE")
@@ -30,10 +31,16 @@ function helpText(){
     console.log("")
     console.log("Check if any republished posts have been deleted so they can be attempted again")
     console.log("  ./run.sh --targetAcct account@instance.tld --check-deletions")
+    console.log("")
+    console.log("Look for duplicate posts in the archive by content and record that they are duplicates")
+    console.log("  ./run.sh --targetAcct account@instance.tld --mark-duplicates")
+    console.log("")
+    console.log("Delete any republished posts (use with extreme caution)")
+    console.log("  ./run.sh --targetAcct account@instance.tld --delete")
 }
 async function main(): Promise<void> {
     const flags = parseArgs(Deno.args, {
-    boolean: ["help", "publish", "delete", "backdating-query", "check-deletions"],
+    boolean: ["help", "publish", "delete", "backdating-query", "check-deletions", "mark-duplicates"],
     string: ["exportPath", "targetAcct", "inspect"],
     });
 
@@ -66,6 +73,11 @@ async function main(): Promise<void> {
     if (flags["backdating-query"]){
         console.log("Building backdating queries", flags.exportPath)
         Deno.exit(await buildBackdatingQueries(partition));
+    }
+
+    if (flags["mark-duplicates"]){
+        console.log("Scanning for duplicates and marking them", flags.exportPath)
+        Deno.exit(await findDuplicatesByContent(partition));
     }
 
     if (flags["check-deletions"]){
@@ -128,6 +140,7 @@ async function publishUnpublishedArchivePosts(partition: DbPartition, client: Me
 
     const pipeline = new LoadArchivedPostKeysFromDb()
         .into(new LoadArchivedPostDataFromDb())
+        .into(new FilterDuplicatedPosts(partition, "content", 'drop')) // Drop any posts which we've previously scanned and found to have identical content
         .into(new FilterStage(p => p.inReplyTo === null)) // Don't republish replies.
         .into(new FilterByVisibility(['public'])) // Only republish public posts.
         //.into(new FilterStage(p => p.hasAnyAttachments === true))
@@ -137,18 +150,21 @@ async function publishUnpublishedArchivePosts(partition: DbPartition, client: Me
         .into(new LoadRepublishedPostsFromDb(partition))
         .into(new DropRepublishedPosts())
         .into(eligiblePostsCounter)
-        //.into(new LimitByCount(5))
+        //.into(new LimitByCount(50))
         .into(new RemoveAnchorTags("botsin.space/media"))
         .into(new PostContentToMarkdown())
-        .into(new DraftArchivedPosts(client, config))
+        .into(new DraftArchivedPosts(config))
         .into(new FilterStage(d => d.text[0] !== '@')) // For bot import: drop any post that's tagging another user.
         //.into(new EchoJson())
         //.into(new WriteJsonToFile('draft'))
         //.into(new InteractiveConfirmation((x) => `text: '${x.text}'. looks ok?`))
+        .into(new StderrWriteEachItem((p) => '_'))
         .into(new RepublishPosts(client, config))
+        .into(new StderrWriteEachItem((p) => '^'))
         .into(new RecordRepublishToDb(partition))
+        .into(new StderrWriteEachItem((p) => 'w'))
         //.into(new EchoJson())
-        .into(new EchoRepublishedPosts())
+        //.into(new EchoRepublishedPosts())
         pipeline.stopOnError = true
 
     const result = await RunPipeline(pipeline, [partition])
@@ -177,14 +193,15 @@ async function deleteRepublished(partition: DbPartition, client: MegalodonInterf
     const pipeline = new LoadArchivedPostKeysFromDb()
         .into(new LoadArchivedPostDataFromDb())
         //.into(new FilterStage(p => p.hasAnyAttachments === true))
-        .into(new FilterStage(p => p.sensitive === true))
+        //.into(new FilterStage(p => p.sensitive === true))
+        .into(new FilterDuplicatedPosts(partition, "content", 'keep')) // narrow down the set to delete to just duplicates.
         .into(new LoadRepublishedPostsFromDb(partition))
         .into(new KeepRepublishedPosts())
-        .into(new LimitByCount(1))
-        //.into(new InteractiveConfirmation(p => `Delete post ${p.status.url}?`))
-        .into(new DeleteRepublishedPostsFromInstance(client)) // does not work on deno https://github.com/denoland/deno/issues/22565
+        //.into(new LimitByCount(1))
+        //.into(new InteractiveConfirmation(p => `Delete post ${p.status.url} '${p.status.content.substring(0, 15)}'?`))
+        .into(new InteractiveConfirmation(p => `Delete post ${p.status.url} '${p.status.content.substring(0, 15)}'?`))
+        .into(new DeleteRepublishedPostsFromInstance(client, partition, true)) // does not work on deno without bypassing megalodon and using fetch directly; https://github.com/denoland/deno/issues/22565
         .into(new DeleteRepublishedPostsFromDb(partition))
-        .into(new EchoRepublishedPosts())
         pipeline.stopOnError = true
 
     const result = await RunPipeline(pipeline, [partition])
@@ -219,6 +236,36 @@ async function buildBackdatingQueries(partition: DbPartition): Promise<number>{
     if (pipeline.errors.length > 0){
         return 1
     }
+    return 0
+}
+
+async function findDuplicatesByContent(partition: DbPartition): Promise<number>{
+    const duplicateCollector = new CollectDuplicates<IArchivedPost>(p => p.text)
+    const duplicateCollectionPipeline = new LoadArchivedPostKeysFromDb()
+        .into(new LoadArchivedPostDataFromDb())
+        .into(new RemoveAnchorTags("botsin.space/media"))
+        .into(new PostContentToMarkdown())
+        //.into(new ForgetDuplicatePosts(partition, "content")) // uncomment to drop any existing dup knowledge first
+        .into(duplicateCollector)
+    const result = await RunPipeline(duplicateCollectionPipeline, [partition])
+
+    if (duplicateCollectionPipeline.errors.length > 0){
+        console.log("pipeline failed, no duplicates written to db")
+        return 1
+    }
+
+    const duplicates = duplicateCollector.collectDuplicates();
+    // condense it down a bit so we don't make a huge json file :)
+    const duplicatesToWriteOut = duplicates.map(d => {
+        return {...d, duplicates: d.duplicates.map(p => p.originalUrl)}
+    })
+
+    const write = new WriteJsonToFile("duplicates")
+    await write.process([duplicatesToWriteOut], async (a) => {})
+
+    await recordDuplicatesToDb(partition, "content", duplicates)
+    console.log(`recorded ${duplicates.length} duplicates to db`)
+
     return 0
 }
 
@@ -263,6 +310,8 @@ async function inspectByUrl(url: string, partition: DbPartition): Promise<number
             }
             return p.originalUrl === url;
         }))
+        .into(new RemoveAnchorTags("botsin.space/media"))
+        .into(new PostContentToMarkdown())
         pipeline.stopOnError = true
 
     const result = await RunPipeline(pipeline, [partition])

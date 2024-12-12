@@ -12,19 +12,23 @@ Deno.test({name: "deduplication of numbers"}, async(t) => {
     assertEquals(dups, [
         {
             "duplicates": [ 2 ],
-            "key": "2"
+            "key": "2",
+            "original": 2
         },
         {
             "duplicates": [ 4, 4 ],
-            "key": "4"
+            "key": "4",
+            "original": 4
         },
         {
             "duplicates": [ 6 ],
-            "key": "6"
+            "key": "6",
+            "original": 6
         },
         {
             "duplicates": [ 8, 8, 8 ],
-            "key": "8"
+            "key": "8",
+            "original": 8
         }
     ])
 })
@@ -48,11 +52,13 @@ Deno.test({name: "when there are only duplicates"}, async(t) => {
     assertEquals(dups, [
         {
             "duplicates": [1,1,1,1,1,1],
-            "key": "1"
+            "key": "1",
+            "original": 1
         },
         {
             "duplicates": [2,2,2,2,2,2,2],
-            "key": "2"
+            "key": "2",
+            "original": 2
         }
     ])
 })
@@ -87,7 +93,11 @@ Deno.test({name: "deduplication by exact content"}, async(t) => {
                 "content": "so true"
             }
             ],
-            "key": "so true"
+            "key": "so true",
+            "original": {
+                "id": "b",
+                "content": "so true"
+            }
         },
         {
             "duplicates": [
@@ -96,7 +106,11 @@ Deno.test({name: "deduplication by exact content"}, async(t) => {
                 "content": "yeah"
             }
             ],
-            "key": "yeah"
+            "key": "yeah",
+            "original": {
+                "id": "d",
+                "content": "yeah"
+            }
         }
     ])
 })

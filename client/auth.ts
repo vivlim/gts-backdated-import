@@ -3,16 +3,51 @@ import generator, { detector, MegalodonInterface } from "megalodon"
 
 
 export async function authenticate(partition: DbPartition /* dbpartition is also account name */): Promise<MegalodonInterface>{
-    const db = await dbConnection.getValueAsync();
-    const existingAuth = await db.get<StoredAuth>(authDbKey(partition));
-    if (existingAuth.value !== null){
-        return getAuthenticatedClient(existingAuth.value)
+    const authData = await getAuthData(partition);
+    return getAuthenticatedClient(authData)
+}
+
+export type DirectClientState = {
+    headers: Headers,
+    authData: StoredAuth,
+    baseUrl: string,
+
+}
+export async function getClientState(partition: DbPartition): Promise<DirectClientState>{
+    const authData = await getAuthData(partition);
+    const h = new Headers();
+    h.append("Content-Type", "application/json")
+    h.append("Authorization", `Bearer ${authData.tokenData.access_token}`)
+
+    return {
+        headers: h,
+        authData,
+        baseUrl: "https://"+partitionToInstance(partition)
+    };
+}
+
+export function partitionToInstance(partition: DbPartition): string{
+    // drop first @ if there is one
+    if (partition[0] === '@'){
+        partition = partition.slice(1) as DbPartition;
     }
 
     const instanceDomain = partition.split('@')[1]
     if (instanceDomain === undefined){
         throw new Error("account is not of the correct form")
     }
+    return instanceDomain;
+
+}
+
+async function getAuthData(partition: DbPartition): Promise<StoredAuth>{
+    const db = await dbConnection.getValueAsync();
+    const existingAuth = await db.get<StoredAuth>(authDbKey(partition));
+    if (existingAuth.value !== null){
+        return existingAuth.value;
+    }
+
+    const instanceDomain = partitionToInstance(partition);
 
     const baseUrl = "https://"+instanceDomain
     const software = await detector(baseUrl);
@@ -35,7 +70,8 @@ export async function authenticate(partition: DbPartition /* dbpartition is also
     }
 
     await db.set(authDbKey(partition), data)
-    return getAuthenticatedClient(data)
+    return data;
+
 }
 
 function getAuthenticatedClient(auth: StoredAuth): MegalodonInterface{
